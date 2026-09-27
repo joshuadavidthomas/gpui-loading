@@ -1,0 +1,21 @@
+name: Install Linux dependencies
+description: Install the native libraries and build tools required by GPUI
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          build-essential \
+          clang \
+          cmake \
+          libfontconfig-dev \
+          libvulkan-dev \
+          libvulkan1 \
+          libwayland-dev \
+          libx11-xcb-dev \
+          libxkbcommon-dev \
+          libxkbcommon-x11-dev \
+          pkg-config

@@ -1,0 +1,4 @@
+[[production]]
+package = "gpui-loading"
+lib = "gpui_loading"
+reason = "published spinner library"
