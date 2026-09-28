@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Prepares an Amp orb for this repository. Amp runs this from the repo root
+# and snapshots the result, so everything here should be idempotent.
+set -euo pipefail
+
+log() { printf '==> %s\n' "$*"; }
+
+bin_dir="$HOME/.local/bin"
+mkdir -p "$bin_dir"
+
+# Native libraries GPUI needs; keep in sync with
+# .github/actions/install-linux-dependencies.
+apt_packages=(
+	build-essential
+	clang
+	cmake
+	libfontconfig-dev
+	libvulkan-dev
+	libvulkan1
+	libwayland-dev
+	libx11-xcb-dev
+	libxkbcommon-dev
+	libxkbcommon-x11-dev
+	pkg-config
+)
+missing=()
+for pkg in "${apt_packages[@]}"; do
+	dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' || missing+=("$pkg")
+done
+if [ ${#missing[@]} -gt 0 ]; then
+	log "Installing system packages: ${missing[*]}"
+	sudo apt-get update
+	sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
+fi
+
+if ! command -v mise >/dev/null 2>&1; then
+	log "Installing mise"
+	curl -fsSL https://mise.run | MISE_INSTALL_PATH="$bin_dir/mise" sh
+fi
+mise trust --yes mise.toml
+
+# Each directory pins its own Rust toolchain in rust-toolchain.toml: the repo
+# root for building and tools/rustfmt for `just fmt`. tools/hawk's toolchain
+# is left for rustup to install the first time `just hawk` runs.
+log "Installing tools"
+mise install --yes
+mise -C tools/rustfmt install --yes rust
+
+# Expose mise's shims on the PATH every orb shell already has.
+mise reshim
+for shim in "$HOME"/.local/share/mise/shims/*; do
+	ln -sfn "$shim" "$bin_dir/$(basename "$shim")"
+done
+
+log "Fetching crates"
+cargo fetch --locked
+
+log "Installing pre-commit hook environments"
+prek install-hooks
+
+log "Done"
