@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="22.8" height="22.8" viewBox="-3.4 -3.4 22.8 22.8">
-<!-- Radar's beam and its radial gradient, from the web version. The view is 16×16; the viewBox pads it by 0.2125 of that on each side so the sprite can turn without its edges showing. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1" viewBox="-4 -4 24 24">
+<!-- Radar's beam and its radial gradient, from the web version. The view is 16×16; the viewBox pads it by 0.25 of that on each side so the sprite can turn without its edges showing. -->
 <defs><radialGradient id="beam" cx="8" cy="8" r="8" gradientUnits="userSpaceOnUse"><stop offset="0.3334" stop-color="black"/><stop offset="1" stop-color="black" stop-opacity="0"/></radialGradient></defs>
 <path fill="url(#beam)" d="M8 0C9.50657 0 10.9824 0.425672 12.2578 1.22754C13.5333 2.02953 14.557 3.17533 15.21 4.5332C15.8629 5.89107 16.1193 7.40626 15.9492 8.90332C15.7791 10.4001 15.1896 11.8184 14.249 12.9951L10.4707 9.69922C10.8037 9.21598 11 8.63123 11 8C11 6.34315 9.65685 5 8 5V0Z"/>
 </svg>

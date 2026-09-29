@@ -327,10 +327,6 @@ impl Painter<'_> {
     /// Draws `sprite` over the spinner's square box, turned by `turn` —
     /// which may only rotate or mirror it about the box's center, so its
     /// padded tile always covers the region it is clipped to.
-    #[expect(
-        clippy::many_single_char_names,
-        reason = "the names follow the affine matrix entries they hold"
-    )]
     pub fn sprite(&mut self, sprite: Sprite, turn: Affine, alpha: f32) {
         if alpha <= 0.0 {
             return;
@@ -347,24 +343,13 @@ impl Painter<'_> {
         });
         let (clip, tile) = sprite.margins();
         let clip = self.bounds(-clip, -clip, view + 2.0 * clip, view + 2.0 * clip);
-        let bounds = self.bounds(-tile, -tile, view + 2.0 * tile, view + 2.0 * tile);
-        // The sprite shader transforms device positions, so conjugate the
-        // turn into device space: q ↦ o + L(q − o) + k·t.
         let scale = self.window.scale_factor();
-        let k = self.unit * scale;
-        let (ox, oy) = (
+        let origin = (
             f32::from(self.origin.x) * scale,
             f32::from(self.origin.y) * scale,
         );
-        let [[a, c], [b, d]] = turn.linear_part();
-        let (tx, ty) = turn.translation();
-        let transformation = TransformationMatrix {
-            rotation_scale: [[a, c], [b, d]],
-            translation: [
-                ox - (a * ox + c * oy) + k * tx,
-                oy - (b * ox + d * oy) + k * ty,
-            ],
-        };
+        let (bounds, transformation) =
+            sprite_tile(origin, self.unit * scale, scale, view, tile, turn);
         let color = self.color.opacity(alpha);
         let cx = self.cx;
         self.window
@@ -375,5 +360,111 @@ impl Painter<'_> {
                     log::warn!("gpui-loading: failed to paint sprite {sprite:?}: {error}");
                 }
             });
+    }
+}
+
+/// Lays out the tile of a sprite `view` units across, padded by `tile`, over
+/// a spinner at device `origin` with `k` device pixels per view unit, and
+/// the transformation turning it by `turn` there.
+///
+/// GPUI rasterizes a sprite at a whole number of pixels and rounds where it
+/// lands, which would leave it up to a pixel off the center it turns about —
+/// wobbling as it spins, and popping when a turn wraps. So the tile is laid
+/// out in whole device pixels, just covering the padded view, leaving GPUI
+/// nothing to round, and the view is mapped onto it exactly.
+#[expect(
+    clippy::many_single_char_names,
+    reason = "the names follow the affine matrix entries they hold"
+)]
+fn sprite_tile(
+    origin: (f32, f32),
+    k: f32,
+    scale: f32,
+    view: f32,
+    tile: f32,
+    turn: Affine,
+) -> (Bounds<Pixels>, TransformationMatrix) {
+    let (ox, oy) = origin;
+    let padded = view + 2.0 * tile;
+    let side = (k * padded).ceil() + 1.0;
+    let inset = k * (view - padded) / 2.0;
+    let (left, top) = ((ox + inset).floor(), (oy + inset).floor());
+    // A hair under `side`, so GPUI's ceil lands on `side` exactly.
+    let bounds = Bounds::new(
+        point(px(left / scale), px(top / scale)),
+        size(px((side - 0.01) / scale), px((side - 0.01) / scale)),
+    );
+    // The tile puts view point u at q = (left, top) + s·(u + tile). The
+    // sprite shader transforms device positions, so map each q back to its
+    // u and turn it into device space: q ↦ o + k·(L·u + t).
+    let s = side / padded;
+    let (ux, uy) = (-left / s - tile, -top / s - tile);
+    let [[a, c], [b, d]] = turn.linear_part();
+    let (tx, ty) = turn.translation();
+    let r = k / s;
+    let transformation = TransformationMatrix {
+        rotation_scale: [[r * a, r * c], [r * b, r * d]],
+        translation: [
+            ox + k * (a * ux + c * uy + tx),
+            oy + k * (b * ux + d * uy + ty),
+        ],
+    };
+    (bounds, transformation)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::geom::pt;
+
+    /// Where GPUI's `paint_svg` draws a tile laid out over `bounds`, as
+    /// its device origin and side, for an SVG 1×1 in size.
+    fn drawn(bounds: Bounds<Pixels>, scale: f32) -> (f32, f32, f32) {
+        let x = f32::from(bounds.origin.x) * scale;
+        let y = f32::from(bounds.origin.y) * scale;
+        let side = f32::from(bounds.size.width) * scale;
+        // Rasterized at twice the size, then drawn at half that.
+        let drawn = (side * 2.0).ceil() / 2.0;
+        let place = |start: f32| (start + side / 2.0 - drawn / 2.0).round();
+        (place(x), place(y), drawn)
+    }
+
+    #[test]
+    fn sprites_land_where_they_are_turned() {
+        let (view, tile) = (1.0, 0.25);
+        for scale in [1.0, 1.25, 1.5, 2.0] {
+            for size in [20.0, 32.0, 48.0, 64.0, 37.3] {
+                for origin in [(0.0, 0.0), (101.0, 57.0), (101.3, 57.7), (640.5, 12.25)] {
+                    for turn in [
+                        Affine::IDENTITY,
+                        Affine::rotate(37.0).about(pt(0.5, 0.5)),
+                        Affine::rotate(90.0).about(pt(0.5, 0.5)),
+                        Affine::linear(1.0, 0.0, 0.0, -1.0).about(pt(0.5, 0.5)),
+                    ] {
+                        let o = (origin.0 * scale, origin.1 * scale);
+                        let k = size * scale;
+                        let (bounds, transformation) = sprite_tile(o, k, scale, view, tile, turn);
+                        let (left, top, side) = drawn(bounds, scale);
+                        assert!(side >= k * (view + 2.0 * tile), "the tile covers the view");
+                        // Each view point, as the tile holds it, lands where
+                        // the turn puts it.
+                        for u in [pt(0.0, 0.0), pt(0.5, 0.5), pt(1.0, 0.25), pt(0.8, 1.0)] {
+                            let s = side / (view + 2.0 * tile);
+                            let q = point(px(left + s * (u.x + tile)), px(top + s * (u.y + tile)));
+                            let landed = transformation.apply(q);
+                            let want = turn.apply(u);
+                            let want = (o.0 + k * want.x, o.1 + k * want.y);
+                            let error = (f32::from(landed.x) - want.0)
+                                .abs()
+                                .max((f32::from(landed.y) - want.1).abs());
+                            assert!(
+                                error < 1e-2,
+                                "scale {scale}, size {size}, origin {origin:?}: {u:?} is {error}px off"
+                            );
+                        }
+                    }
+                }
+            }
+        }
     }
 }
