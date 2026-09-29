@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1.425" height="1.425" viewBox="-0.2125 -0.2125 1.425 1.425">
-<!-- Comet: conic-gradient(from 0deg, transparent, currentColor) on a ring 12% thick, with the head at 12 o'clock. SVG has no conic gradients, so this stacks sectors that all end at the head, each fainter layer starting earlier; stacked, they fade in evenly and share no edges to leave seams. The view is 1×1; the viewBox pads it by 0.2125 of that on each side so the sprite can turn without its edges showing. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1" viewBox="-0.25 -0.25 1.5 1.5">
+<!-- Comet: conic-gradient(from 0deg, transparent, currentColor) on a ring 12% thick, with the head at 12 o'clock. SVG has no conic gradients, so this stacks sectors that all end at the head, each fainter layer starting earlier; stacked, they fade in evenly and share no edges to leave seams. The view is 1×1; the viewBox pads it by 0.25 of that on each side so the sprite can turn without its edges showing. -->
 <path fill-opacity="0.0104" d="M0.5000 0.0000A0.5 0.5 0 1 1 0.5000 0.0000L0.5000 0.1200A0.38 0.38 0 1 0 0.5000 0.1200Z"/>
 <path fill-opacity="0.0211" d="M0.5653 0.0043A0.5 0.5 0 1 1 0.5000 0.0000L0.5000 0.1200A0.38 0.38 0 1 0 0.5496 0.1233Z"/>
 <path fill-opacity="0.0215" d="M0.6294 0.0170A0.5 0.5 0 1 1 0.5000 0.0000L0.5000 0.1200A0.38 0.38 0 1 0 0.5984 0.1329Z"/>

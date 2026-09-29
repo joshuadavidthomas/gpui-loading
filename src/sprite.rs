@@ -9,6 +9,10 @@
 //! sprite is padded with enough transparent margin that, turned any amount
 //! about its center, its edges stay outside the region it is clipped to.
 //!
+//! Every SVG is 1×1 in size, whatever its view, so GPUI rasterizes it at
+//! exactly the pixel size asked for, with no rounding to throw off where it
+//! is drawn.
+//!
 //! GPUI loads every SVG through the app's [`AssetSource`], so spinners serve
 //! theirs from [`SpinnerAssets`], which the app installs with
 //! `Application::with_assets`. A generated sprite's asset path names it in a
@@ -38,8 +42,14 @@ const PREFIX: &str = "gpui-loading/";
 const GENERATED: &str = "gpui-loading/generated/";
 
 /// The margin every sprite's tile has around its view, as a fraction of the
-/// view: enough that the tile, turned any amount, still covers the view.
-const MARGIN: f32 = 0.2125;
+/// view: enough that the tile, turned any amount, still covers the view and
+/// the [`CLIP`] margin around it.
+const MARGIN: f32 = 0.25;
+
+/// How far past its view a sprite is drawn before being clipped, as a
+/// fraction of the view, so shapes reaching the view's edge keep their
+/// antialiased rim.
+const CLIP: f32 = 0.03;
 
 /// The SVG files in `assets/`, each a shape that only ever turns.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -202,7 +212,7 @@ impl Sprite {
             | Sprite::RoundedRect { .. }
             | Sprite::AtomOrbit { .. }
             | Sprite::TraceDash { .. }
-            | Sprite::FlipFace { .. } => (0.0, MARGIN * view),
+            | Sprite::FlipFace { .. } => (CLIP * view, MARGIN * view),
         }
     }
 
@@ -217,7 +227,7 @@ impl Sprite {
         let (_, m) = self.margins();
         let side = view + 2.0 * m;
         let mut svg = format!(
-            r#"<svg xmlns="http://www.w3.org/2000/svg" width="{side}" height="{side}" viewBox="{} {} {side} {side}">"#,
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1" viewBox="{} {} {side} {side}">"#,
             -m, -m,
         );
         let c = view / 2.0;
@@ -491,8 +501,11 @@ mod tests {
             let svg = std::str::from_utf8(asset.bytes()).expect("asset files are UTF-8");
             let (_, m) = Sprite::Asset(asset).margins();
             let side = asset.view() + 2.0 * m;
-            let view_box = format!(r#"viewBox="{} {} {} {}""#, -m, -m, side, side);
-            assert!(svg.contains(&view_box), "{asset:?} lacks {view_box}");
+            let header = format!(
+                r#"width="1" height="1" viewBox="{} {} {} {}""#,
+                -m, -m, side, side
+            );
+            assert!(svg.contains(&header), "{asset:?} lacks {header}");
         }
     }
 
@@ -500,7 +513,9 @@ mod tests {
     fn a_turned_tile_covers_its_clip() {
         for sprite in [
             Sprite::Asset(Asset::Comet),
+            Sprite::Asset(Asset::Tick),
             Sprite::GatherBlocks { pull: 0 },
+            Sprite::AtomOrbit { squash: 1000 },
         ] {
             let (clip, tile) = sprite.margins();
             let half = sprite.view() / 2.0;

@@ -26,7 +26,7 @@ impl RenderOnce for Radar {
                 p.ring(center, 6.0, 1.0, 0.2);
                 let turn = Affine::rotate(spin(m, easing)).about(center);
                 p.sprite(Sprite::Asset(Asset::RadarBeam), turn, 1.0);
-                p.circle(center, 2.0, 1.0);
+                p.dot(center, 2.0, 1.0);
             },
         )
     }

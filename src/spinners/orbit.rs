@@ -21,7 +21,7 @@ impl RenderOnce for Orbit {
             cx,
             move |p, m| {
                 let center = pt(0.5, 0.5);
-                p.circle(center, 0.125, 1.0);
+                p.dot(center, 0.125, 1.0);
                 let turn = Affine::rotate(spin(m, easing)).about(center);
                 p.sprite(Sprite::Asset(Asset::Orbit), turn, 1.0);
             },

@@ -1,5 +1,8 @@
 use super::prelude::*;
 
+/// Cells across the grid the segments are drawn on.
+const GRID: f32 = 15.0;
+
 const BLOCK: [Pt; 4] = [pt(0.0, 0.0), pt(2.0, 0.0), pt(0.0, 2.0), pt(2.0, 2.0)];
 
 const SEGMENTS: [Pt; 8] = [
@@ -28,7 +31,12 @@ impl RenderOnce for Loading {
             window,
             cx,
             |p, m| {
-                p.view(15.0);
+                // Whole device pixels to a cell, centered: cells between
+                // pixels smear unevenly at small sizes.
+                let pixels = p.device_size();
+                p.view(pixels);
+                let cell = (pixels / GRID).floor().max(1.0);
+                let offset = ((pixels - GRID * cell) / 2.0).floor();
                 for (index, segment) in SEGMENTS.iter().enumerate() {
                     let alpha = if m.reduced() {
                         0.6
@@ -37,10 +45,10 @@ impl RenderOnce for Loading {
                     };
                     for pixel in BLOCK {
                         p.rect(
-                            segment.x + pixel.x,
-                            segment.y + pixel.y,
-                            1.0,
-                            1.0,
+                            offset + (segment.x + pixel.x) * cell,
+                            offset + (segment.y + pixel.y) * cell,
+                            cell,
+                            cell,
                             0.0,
                             alpha,
                         );

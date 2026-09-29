@@ -33,7 +33,7 @@ impl RenderOnce for CircularDots {
                     } else {
                         1.0.lerp(0.2, m.staggered(index, DOTS.len()))
                     };
-                    p.circle(center, 1.5, alpha);
+                    p.dot(center, 1.5, alpha);
                 }
             },
         )

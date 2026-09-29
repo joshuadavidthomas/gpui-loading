@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="22.8" height="22.8" viewBox="-3.4 -3.4 22.8 22.8">
-<!-- The 12 o'clock tick of ClassicV2 and Compass, from the web version; turned for the others. The view is 16×16; the viewBox pads it by 0.2125 of that on each side so the sprite can turn without its edges showing. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1" viewBox="-4 -4 24 24">
+<!-- The 12 o'clock tick of ClassicV2 and Compass, from the web version; turned for the others. The view is 16×16; the viewBox pads it by 0.25 of that on each side so the sprite can turn without its edges showing. -->
 <path d="M7.33334 0.666667C7.33334 0.298477 7.63181 0 8 0C8.36819 0 8.66667 0.298477 8.66667 0.666667V3.33333C8.66667 3.70152 8.36819 4 8 4C7.63181 4 7.33334 3.70152 7.33334 3.33333V0.666667Z"/>
 </svg>

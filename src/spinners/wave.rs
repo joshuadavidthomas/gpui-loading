@@ -45,6 +45,15 @@ impl RenderOnce for Wave {
             window,
             cx,
             move |p, m| {
+                // Laid out across in whole device pixels, so thin bars
+                // between pixels don't blur to uneven widths. They rise and
+                // fall smoothly.
+                let pixels = p.device_size();
+                p.view(pixels);
+                let bar = (pixels * BAR).round().max(1.0);
+                let gap = ((pixels - bar * f32::from(BARS)) / f32::from(BARS - 1)).floor();
+                let span = bar * f32::from(BARS) + gap * f32::from(BARS - 1);
+                let start = ((pixels - span) / 2.0).round();
                 for index in 0..BARS {
                     let height = if m.reduced() {
                         0.4 + f32::from(index) * 0.15
@@ -55,12 +64,12 @@ impl RenderOnce for Wave {
                             Timing::EASE_IN_OUT,
                         )
                     };
-                    let x = f32::from(index) * (1.0 - BAR) / f32::from(BARS - 1);
+                    let x = start + f32::from(index) * (bar + gap);
                     let y = match origin {
                         WaveOrigin::Bottom => 1.0 - height,
                         WaveOrigin::Center => (1.0 - height) / 2.0,
                     };
-                    p.rect(x, y, BAR, height, BAR / 2.0, 1.0);
+                    p.rect(x, y * pixels, bar, height * pixels, bar / 2.0, 1.0);
                 }
             },
         )
