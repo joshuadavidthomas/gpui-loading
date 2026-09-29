@@ -24,8 +24,11 @@ use gpui_loading::SpinnerName;
 
 use crate::code::code_block;
 use crate::controls::icon_button;
+use crate::controls::segmented;
 use crate::controls::slider;
 use crate::gallery::Gallery;
+use crate::options::controls;
+use crate::options::speed_range;
 use crate::spinners::description;
 use crate::spinners::title;
 use crate::theme::ORANGE;
@@ -36,11 +39,6 @@ pub(crate) const SIZES: [(&str, f32); 3] = [("Small", 24.0), ("Medium", 48.0), (
 /// The colours the picker offers up front, after the inherited text colour.
 pub(crate) const FEATURED_COLORS: [u32; 5] =
     [ORANGE, 0x003b_82f6, 0x0022_c55e, 0x00a8_55f7, 0x00ec_4899];
-
-/// The speed slider's range, in milliseconds per cycle. The slider runs
-/// the other way, as on the site: right is faster.
-pub(crate) const MIN_MS: f64 = 200.0;
-pub(crate) const MAX_MS: f64 = 2000.0;
 
 /// `duration` in whole milliseconds. The speed slider stores it as a float,
 /// so compare and print it rounded.
@@ -164,7 +162,7 @@ impl Gallery {
         if let Some(color) = self.color(cx) {
             spinner = spinner.color(color);
         }
-        spinner
+        self.options.apply(spinner)
     }
 
     pub(crate) fn panel(&self, name: SpinnerName, cx: &mut Context<Self>) -> impl IntoElement {
@@ -177,33 +175,33 @@ impl Gallery {
             .map(|color| color.to_hex().to_uppercase())
             .unwrap_or_default();
 
-        let sizes = SIZES.iter().enumerate().map(|(index, (label, _))| {
-            let selected = self.size == index;
-            div()
-                .id(("size", index))
-                .flex()
-                .flex_1()
-                .min_w_0()
-                .h_8()
-                .items_center()
-                .justify_center()
-                .rounded_lg()
-                .cursor_pointer()
-                .when(selected, |this| {
-                    this.bg(palette.raised)
-                        .border_1()
-                        .border_color(palette.border)
-                })
-                .when(!selected, |this| {
-                    this.text_color(palette.muted)
-                        .hover(|style| style.text_color(palette.text))
-                })
-                .child(*label)
-                .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                    this.size = index;
-                    cx.notify();
-                }))
-        });
+        let (min_ms, max_ms) = speed_range(name);
+        let sizes: Vec<_> = SIZES
+            .iter()
+            .enumerate()
+            .map(|(index, &(label, _))| (index, label))
+            .collect();
+        let option_rows: Vec<_> = controls(name)
+            .iter()
+            .map(|&control| {
+                let choices: Vec<_> = control
+                    .values()
+                    .iter()
+                    .map(|&value| (value, value.label()))
+                    .collect();
+                segmented(
+                    control.prop(),
+                    &choices,
+                    self.options.value(control),
+                    &palette,
+                    cx,
+                    |this, value| {
+                        this.options.set(value);
+                    },
+                )
+                .into_any_element()
+            })
+            .collect();
 
         let color = h_flex()
             .h_8()
@@ -257,24 +255,28 @@ impl Gallery {
             .bg(palette.raised)
             .text_sm()
             .font_weight(FontWeight::MEDIUM)
-            .child(
-                h_flex()
-                    .h_8()
-                    .rounded_lg()
-                    .bg(palette.raised)
-                    .children(sizes),
-            )
+            .child(segmented(
+                "size",
+                &sizes,
+                self.size,
+                &palette,
+                cx,
+                |this, value| {
+                    this.size = value;
+                },
+            ))
+            .children(option_rows)
             .child(color)
             .child(slider(
                 "speed",
                 "Speed",
                 format!("{ms:.0}ms"),
                 // Right is faster, as on the site.
-                (MAX_MS - ms) / (MAX_MS - MIN_MS),
+                (max_ms - ms) / (max_ms - min_ms),
                 &palette,
                 cx,
-                |this, fraction| {
-                    let ms = MAX_MS - fraction * (MAX_MS - MIN_MS);
+                move |this, fraction| {
+                    let ms = max_ms - fraction * (max_ms - min_ms);
                     this.duration = Duration::from_secs_f64((ms / 10.0).round() / 100.0);
                 },
             ))

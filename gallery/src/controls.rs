@@ -4,6 +4,7 @@ use std::cell::Cell;
 use std::rc::Rc;
 
 use gpui_kit::Bounds;
+use gpui_kit::ClickEvent;
 use gpui_kit::Context;
 use gpui_kit::MouseButton;
 use gpui_kit::MouseDownEvent;
@@ -119,5 +120,49 @@ pub(crate) fn slider(
                 on_change(this, fraction_at(event.position.x));
                 cx.notify();
             }
+        }))
+}
+
+/// A row of mutually exclusive choices, in upstream display order.
+pub(crate) fn segmented<T: Copy + PartialEq + 'static>(
+    id: &'static str,
+    choices: &[(T, &'static str)],
+    value: T,
+    palette: &Palette,
+    cx: &mut Context<Gallery>,
+    on_change: impl Fn(&mut Gallery, T) + 'static,
+) -> impl IntoElement {
+    let on_change = Rc::new(on_change);
+    h_flex()
+        .h_8()
+        .rounded_lg()
+        .bg(palette.raised)
+        .children(choices.iter().enumerate().map(|(index, &(choice, label))| {
+            let selected = value == choice;
+            let on_change = Rc::clone(&on_change);
+            div()
+                .id((id, index))
+                .flex()
+                .flex_1()
+                .min_w_0()
+                .h_8()
+                .items_center()
+                .justify_center()
+                .rounded_lg()
+                .cursor_pointer()
+                .when(selected, |this| {
+                    this.bg(palette.raised)
+                        .border_1()
+                        .border_color(palette.border)
+                })
+                .when(!selected, |this| {
+                    this.text_color(palette.muted)
+                        .hover(|style| style.text_color(palette.text))
+                })
+                .child(label)
+                .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                    on_change(this, choice);
+                    cx.notify();
+                }))
         }))
 }

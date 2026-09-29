@@ -203,6 +203,11 @@ fn any_spinner_takes_the_shared_props() {
         .iter()
         .map(|&name| {
             AnySpinner::named(name, name.key())
+                .easing(Easing::Stacked)
+                .cap(Cap::Flat)
+                .sweep(BlocksSweep::Columns)
+                .direction(RippleDirection::In)
+                .origin(WaveOrigin::Bottom)
                 .size(px(DEFAULT_SIZE * 2.0))
                 .color(rgb(0x003b_82f6))
                 .duration(Duration::from_millis(500))

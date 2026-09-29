@@ -41,6 +41,8 @@ the current frame and resuming continues from there.
 
 To pick a spinner by name, use `AnySpinner::named(SpinnerName::Radar, id)`;
 `SpinnerName::ALL` lists them all with their default durations.
+`AnySpinner` also accepts `easing`, `cap`, `sweep`, `direction`, and `origin`;
+each option applies to the spinners that support it.
 
 ## Reduced motion
 
@@ -58,6 +60,10 @@ same still frame the web version shows under `prefers-reduced-motion`.
 ```sh
 cargo run -p gallery
 ```
+
+The gallery exposes every spinner’s options, with upstream choice labels,
+defaults, and speed ranges. Its live preview and copied Rust example follow
+the selected settings; Reset restores them all.
 
 ## Rendering
 

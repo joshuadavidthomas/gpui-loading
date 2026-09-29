@@ -14,6 +14,7 @@
 mod code;
 mod controls;
 mod gallery;
+mod options;
 mod overview;
 mod sidebar;
 mod spinner_page;

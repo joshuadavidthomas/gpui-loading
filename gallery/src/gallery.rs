@@ -22,6 +22,7 @@ use gpui_kit::prelude::*;
 use gpui_kit::px;
 use gpui_loading::SpinnerName;
 
+use crate::options::Options;
 use crate::sidebar::nav_index;
 use crate::theme::apply_appearance;
 
@@ -38,6 +39,7 @@ pub(crate) struct Gallery {
     pub(crate) panel_open: bool,
     pub(crate) duration: Duration,
     pub(crate) opacity: f32,
+    pub(crate) options: Options,
     pub(crate) color: Entity<ColorPickerState>,
     /// Paint with the inherited text colour, which the picker then shows,
     /// until a colour is picked.
@@ -73,6 +75,7 @@ impl Gallery {
             panel_open: true,
             duration: Duration::ZERO,
             opacity: 1.0,
+            options: Options::default(),
             color,
             color_inherits: true,
             nav_scroll: ScrollHandle::new(),
@@ -106,6 +109,7 @@ impl Gallery {
         self.paused = false;
         self.duration = name.default_duration();
         self.opacity = 1.0;
+        self.options = Options::default();
         self.color_inherits = true;
         self.sync_inherited_color(window, cx);
     }

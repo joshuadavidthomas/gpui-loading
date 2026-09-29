@@ -29,11 +29,22 @@ impl Gallery {
         use Token::Type;
 
         let component = name.component();
+        let overrides = self.options.overrides(name);
+        let mut imports = vec![component];
+        imports.extend(overrides.iter().map(|(_, value)| value.rust_value().0));
+        if self.paused {
+            imports.push("PlayState");
+        }
+        let imports = if imports.len() == 1 {
+            imports[0].to_string()
+        } else {
+            format!("{{{}}}", imports.join(", "))
+        };
         let mut lines = vec![
             vec![
                 (Keyword, "use".into()),
                 (Plain, " gpui_loading::".into()),
-                (Type, component.into()),
+                (Type, imports),
                 (Plain, ";".into()),
             ],
             vec![],
@@ -49,6 +60,14 @@ impl Gallery {
                 (Plain, "))".into()),
             ],
         ];
+        for (control, value) in overrides {
+            let (ty, variant) = value.rust_value();
+            lines.push(vec![
+                (Plain, format!("    .{}(", control.prop())),
+                (Type, ty.into()),
+                (Plain, format!("::{variant})")),
+            ]);
+        }
         let ms = millis(self.duration);
         if (ms - millis(name.default_duration())).abs() >= 1.0 {
             lines.push(vec![
@@ -84,6 +103,31 @@ impl Gallery {
                 (Type, "PlayState".into()),
                 (Plain, "::Paused)".into()),
             ]);
+        }
+        let mut gpui_imports = vec!["px"];
+        if self.color(cx).is_some() {
+            gpui_imports.push("rgb");
+        }
+        if self.opacity < 1.0 {
+            gpui_imports.push("Styled");
+        }
+        lines.insert(
+            1,
+            vec![
+                (Keyword, "use".into()),
+                (Plain, format!(" gpui::{{{}}};", gpui_imports.join(", "))),
+            ],
+        );
+        if (ms - millis(name.default_duration())).abs() >= 1.0 {
+            lines.insert(
+                2,
+                vec![
+                    (Keyword, "use".into()),
+                    (Plain, " std::time::".into()),
+                    (Type, "Duration".into()),
+                    (Plain, ";".into()),
+                ],
+            );
         }
         lines
     }

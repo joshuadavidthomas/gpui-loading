@@ -41,12 +41,17 @@ pub use motion::set_reduced_motion;
 pub use spinners::*;
 pub use sprite::SpinnerAssets;
 
-/// Any spinner, chosen by name, with its default options — the registry
+/// Any spinner, chosen by name, with configurable options — the registry
 /// the web version exports as `SPINNERS`.
 #[derive(IntoElement)]
 pub struct AnySpinner {
     name: SpinnerName,
     props: SpinnerProps,
+    easing: Easing,
+    cap: Cap,
+    sweep: BlocksSweep,
+    direction: RippleDirection,
+    origin: WaveOrigin,
 }
 
 impl AnySpinner {
@@ -54,7 +59,46 @@ impl AnySpinner {
         AnySpinner {
             name,
             props: SpinnerProps::new(id),
+            easing: DEFAULT_EASING,
+            cap: DEFAULT_CAP,
+            sweep: DEFAULT_BLOCKS_SWEEP,
+            direction: DEFAULT_RIPPLE_DIRECTION,
+            origin: DEFAULT_WAVE_ORIGIN,
         }
+    }
+    /// Sets `easing` for spinners that support it; others keep their behavior.
+    #[must_use]
+    pub fn easing(mut self, easing: Easing) -> Self {
+        self.easing = easing;
+        self
+    }
+
+    /// Sets `cap` for spinners that support it; others keep their behavior.
+    #[must_use]
+    pub fn cap(mut self, cap: Cap) -> Self {
+        self.cap = cap;
+        self
+    }
+
+    /// Sets `sweep` for spinners that support it; others keep their behavior.
+    #[must_use]
+    pub fn sweep(mut self, sweep: BlocksSweep) -> Self {
+        self.sweep = sweep;
+        self
+    }
+
+    /// Sets `direction` for spinners that support it; others keep their behavior.
+    #[must_use]
+    pub fn direction(mut self, direction: RippleDirection) -> Self {
+        self.direction = direction;
+        self
+    }
+
+    /// Sets `origin` for spinners that support it; others keep their behavior.
+    #[must_use]
+    pub fn origin(mut self, origin: WaveOrigin) -> Self {
+        self.origin = origin;
+        self
     }
 }
 
@@ -64,18 +108,32 @@ impl RenderOnce for AnySpinner {
     fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
         let props = self.props;
         let element: AnyElement = match self.name {
-            SpinnerName::Arc => Arc::from_props(props).into_any_element(),
-            SpinnerName::Atom => Atom::from_props(props).into_any_element(),
-            SpinnerName::Blocks => Blocks::from_props(props).into_any_element(),
+            SpinnerName::Arc => Arc::from_props(props)
+                .cap(self.cap)
+                .easing(self.easing)
+                .into_any_element(),
+            SpinnerName::Atom => Atom::from_props(props)
+                .easing(self.easing)
+                .into_any_element(),
+            SpinnerName::Blocks => Blocks::from_props(props)
+                .sweep(self.sweep)
+                .into_any_element(),
             SpinnerName::BouncingDots => BouncingDots::from_props(props).into_any_element(),
-            SpinnerName::Cascade => Cascade::from_props(props).into_any_element(),
+            SpinnerName::Cascade => Cascade::from_props(props).cap(self.cap).into_any_element(),
             SpinnerName::CircularDots => CircularDots::from_props(props).into_any_element(),
             SpinnerName::Classic => Classic::from_props(props).into_any_element(),
             SpinnerName::ClassicV2 => ClassicV2::from_props(props).into_any_element(),
-            SpinnerName::Clock => Clock::from_props(props).into_any_element(),
-            SpinnerName::Comet => Comet::from_props(props).into_any_element(),
+            SpinnerName::Clock => Clock::from_props(props)
+                .easing(self.easing)
+                .into_any_element(),
+            SpinnerName::Comet => Comet::from_props(props)
+                .easing(self.easing)
+                .into_any_element(),
             SpinnerName::Compass => Compass::from_props(props).into_any_element(),
-            SpinnerName::Dual => Dual::from_props(props).into_any_element(),
+            SpinnerName::Dual => Dual::from_props(props)
+                .cap(self.cap)
+                .easing(self.easing)
+                .into_any_element(),
             SpinnerName::Eclipse => Eclipse::from_props(props).into_any_element(),
             SpinnerName::Flip => Flip::from_props(props).into_any_element(),
             SpinnerName::Gather => Gather::from_props(props).into_any_element(),
@@ -83,16 +141,33 @@ impl RenderOnce for AnySpinner {
             SpinnerName::LinearDots => LinearDots::from_props(props).into_any_element(),
             SpinnerName::Loading => Loading::from_props(props).into_any_element(),
             SpinnerName::Morph => Morph::from_props(props).into_any_element(),
-            SpinnerName::Orbit => Orbit::from_props(props).into_any_element(),
+            SpinnerName::Orbit => Orbit::from_props(props)
+                .easing(self.easing)
+                .into_any_element(),
             SpinnerName::Pulse => Pulse::from_props(props).into_any_element(),
-            SpinnerName::Radar => Radar::from_props(props).into_any_element(),
-            SpinnerName::Ring => Ring::from_props(props).into_any_element(),
-            SpinnerName::Ripple => Ripple::from_props(props).into_any_element(),
+            SpinnerName::Radar => Radar::from_props(props)
+                .easing(self.easing)
+                .into_any_element(),
+            SpinnerName::Ring => Ring::from_props(props)
+                .cap(self.cap)
+                .easing(self.easing)
+                .into_any_element(),
+            SpinnerName::Ripple => Ripple::from_props(props)
+                .direction(self.direction)
+                .into_any_element(),
             SpinnerName::Slide => Slide::from_props(props).into_any_element(),
-            SpinnerName::Snake => Snake::from_props(props).into_any_element(),
+            SpinnerName::Snake => Snake::from_props(props)
+                .cap(self.cap)
+                .easing(self.easing)
+                .into_any_element(),
             SpinnerName::Swirl => Swirl::from_props(props).into_any_element(),
-            SpinnerName::Trace => Trace::from_props(props).into_any_element(),
-            SpinnerName::Wave => Wave::from_props(props).into_any_element(),
+            SpinnerName::Trace => Trace::from_props(props)
+                .cap(self.cap)
+                .easing(self.easing)
+                .into_any_element(),
+            SpinnerName::Wave => Wave::from_props(props)
+                .origin(self.origin)
+                .into_any_element(),
         };
         element
     }
