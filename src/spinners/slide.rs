@@ -46,7 +46,7 @@ impl RenderOnce for Slide {
                         keyframes(m.staggered(index, RESTS.len()), &WALK, Timing::EASE_IN_OUT)
                     };
                     let center = pt(MARGIN + DOT / 2.0 + x, MARGIN + DOT / 2.0 + y);
-                    p.circle(center, DOT / 2.0, 1.0);
+                    p.animated_circle(center, DOT / 2.0, 1.0);
                 }
             },
         )

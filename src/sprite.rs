@@ -1,8 +1,8 @@
 //! Shapes GPUI cannot draw as quads — arcs, glyphs, gradients — as SVGs
-//! GPUI rasterizes once into its sprite atlas and then only turns and tints
+//! GPUI rasterizes once into its sprite atlas and then transforms and tints
 //! on the GPU each frame, the way Zed spins its own icons.
 //!
-//! Shapes that only turn are SVG files in `assets/`. The few that change
+//! Shapes that only transform are SVG files in `assets/`. The few that change
 //! shape as they move are generated, one SVG per step of the change.
 //!
 //! A turned sprite's edges would sample the atlas tiles beside it, so every
@@ -51,7 +51,7 @@ const MARGIN: f32 = 0.25;
 /// antialiased rim.
 const CLIP: f32 = 0.03;
 
-/// The SVG files in `assets/`, each a shape that only ever turns.
+/// The SVG files in `assets/`, each a fixed shape transformed on the GPU.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Asset {
     /// `ClassicV2`'s and Compass's tick at 12 o'clock.
@@ -64,16 +64,22 @@ pub(crate) enum Asset {
     Comet,
     /// Orbit's half ring, fading in from 6 o'clock round to 12.
     Orbit,
+    /// Ripple's ring at full scale, with an 8% inside border.
+    RippleRing,
+    /// A full-size filled circle, translated and scaled for animated dots.
+    Circle,
 }
 
 impl Asset {
-    const ALL: [Asset; 6] = [
+    const ALL: [Asset; 8] = [
         Asset::Tick,
         Asset::ClassicBar,
         Asset::ClockHand,
         Asset::RadarBeam,
         Asset::Comet,
         Asset::Orbit,
+        Asset::RippleRing,
+        Asset::Circle,
     ];
 
     fn path(self) -> &'static str {
@@ -84,6 +90,8 @@ impl Asset {
             Asset::RadarBeam => "gpui-loading/radar-beam.svg",
             Asset::Comet => "gpui-loading/comet.svg",
             Asset::Orbit => "gpui-loading/orbit.svg",
+            Asset::RippleRing => "gpui-loading/ripple-ring.svg",
+            Asset::Circle => "gpui-loading/circle.svg",
         }
     }
 
@@ -95,13 +103,17 @@ impl Asset {
             Asset::RadarBeam => include_bytes!("../assets/radar-beam.svg"),
             Asset::Comet => include_bytes!("../assets/comet.svg"),
             Asset::Orbit => include_bytes!("../assets/orbit.svg"),
+            Asset::RippleRing => include_bytes!("../assets/ripple-ring.svg"),
+            Asset::Circle => include_bytes!("../assets/circle.svg"),
         }
     }
 
     fn view(self) -> f32 {
         match self {
             Asset::Tick | Asset::ClockHand | Asset::RadarBeam => 16.0,
-            Asset::ClassicBar | Asset::Comet | Asset::Orbit => 1.0,
+            Asset::ClassicBar | Asset::Comet | Asset::Orbit | Asset::RippleRing | Asset::Circle => {
+                1.0
+            }
         }
     }
 }
@@ -149,10 +161,10 @@ pub(crate) enum Sprite {
         height: Milli,
         radius: Milli,
     },
-    /// Gather's four blocks, `pull` of the way in toward the center.
-    GatherBlocks { pull: Milli },
-    /// One of Atom's orbits, squashed to `squash` of its width.
-    AtomOrbit { squash: Milli },
+    /// One of Gather's blocks, centered so it can translate and turn.
+    GatherBlock,
+    /// One of Atom's circular orbits, squashed and tilted on the GPU.
+    AtomOrbit,
     /// Trace's dash, `offset` along its rounded square.
     TraceDash { offset: Milli, cap: Cap },
     /// Flip's face turned `degrees` about its horizontal axis, in perspective.
@@ -194,7 +206,7 @@ impl Sprite {
             Sprite::Asset(asset) => asset.view(),
             Sprite::Arc { view, .. } | Sprite::RoundedRect { view, .. } => unmilli(view),
             Sprite::TraceDash { .. } => TRACE_VIEW,
-            Sprite::GatherBlocks { .. } | Sprite::AtomOrbit { .. } | Sprite::FlipFace { .. } => 1.0,
+            Sprite::GatherBlock | Sprite::AtomOrbit | Sprite::FlipFace { .. } => 1.0,
         }
     }
 
@@ -206,11 +218,11 @@ impl Sprite {
             // Turned 45° with its blocks drawn in, the group reaches 0.594
             // of the view from its center, so it is clipped 0.1 outside the
             // view, and its tile padded enough to cover that turned.
-            Sprite::GatherBlocks { .. } => (0.1 * view, 0.35 * view),
+            Sprite::GatherBlock => (0.1 * view, 0.35 * view),
             Sprite::Asset(_)
             | Sprite::Arc { .. }
             | Sprite::RoundedRect { .. }
-            | Sprite::AtomOrbit { .. }
+            | Sprite::AtomOrbit
             | Sprite::TraceDash { .. }
             | Sprite::FlipFace { .. } => (CLIP * view, MARGIN * view),
         }
@@ -269,25 +281,20 @@ impl Sprite {
                     unmilli(radius),
                 );
             }
-            Sprite::GatherBlocks { pull } => {
-                for (corner, direction) in GATHER_BLOCKS {
-                    let shift = GATHER_PULL * unmilli(pull);
-                    let _ = write!(
-                        svg,
-                        r#"<rect x="{}" y="{}" width="{GATHER_BLOCK}" height="{GATHER_BLOCK}" rx="0.14"/>"#,
-                        corner.x + direction.x * shift,
-                        corner.y + direction.y * shift,
-                    );
-                }
+            Sprite::GatherBlock => {
+                let corner = (1.0 - GATHER_BLOCK) / 2.0;
+                let _ = write!(
+                    svg,
+                    r#"<rect x="{corner}" y="{corner}" width="{GATHER_BLOCK}" height="{GATHER_BLOCK}" rx="0.14"/>"#,
+                );
             }
-            Sprite::AtomOrbit { squash } => {
+            Sprite::AtomOrbit => {
                 // The orbit's border is squashed along with it, as a 3D
                 // turn would.
                 const STROKE: f32 = 0.045;
                 let _ = write!(
                     svg,
-                    r#"<circle transform="translate(0.5 0.5) scale({} 1)" r="{}" fill="none" stroke="black" stroke-width="{STROKE}"/>"#,
-                    unmilli(squash),
+                    r#"<circle cx="0.5" cy="0.5" r="{}" fill="none" stroke="black" stroke-width="{STROKE}"/>"#,
                     0.5 - STROKE / 2.0,
                 );
             }
@@ -356,17 +363,17 @@ const TRACE_DASH: f32 = 16.0;
 pub(crate) const TRACE_PERIMETER: f32 =
     4.0 * (TRACE_SIDE - 2.0 * TRACE_RADIUS) + TAU * TRACE_RADIUS;
 
-const GATHER_BLOCK: f32 = (1.0 - GATHER_GAP) / 2.0;
+pub(crate) const GATHER_BLOCK: f32 = (1.0 - GATHER_GAP) / 2.0;
 
 const GATHER_GAP: f32 = 0.24;
 
 /// How far each block travels toward the center: enough to close the gap
 /// to 8%, rounded as the web version rounds it, to 21.1% of a block.
-const GATHER_PULL: f32 = 0.211 * GATHER_BLOCK;
+pub(crate) const GATHER_PULL: f32 = 0.211 * GATHER_BLOCK;
 
 /// Top-left corner of each of Gather's blocks, and the direction it is
 /// pulled in.
-const GATHER_BLOCKS: [(Pt, Pt); 4] = [
+pub(crate) const GATHER_BLOCKS: [(Pt, Pt); 4] = [
     (pt(0.0, 0.0), pt(1.0, 1.0)),
     (pt(GATHER_BLOCK + GATHER_GAP, 0.0), pt(-1.0, 1.0)),
     (pt(0.0, GATHER_BLOCK + GATHER_GAP), pt(1.0, -1.0)),
@@ -489,8 +496,8 @@ mod tests {
             offset: milli(3.0),
             cap: Cap::Flat,
         });
-        renders(Sprite::GatherBlocks { pull: milli(0.5) });
-        renders(Sprite::AtomOrbit { squash: milli(0.3) });
+        renders(Sprite::GatherBlock);
+        renders(Sprite::AtomOrbit);
         renders(Sprite::FlipFace { degrees: -45 });
         renders(Sprite::FlipFace { degrees: -90 });
     }
@@ -514,8 +521,8 @@ mod tests {
         for sprite in [
             Sprite::Asset(Asset::Comet),
             Sprite::Asset(Asset::Tick),
-            Sprite::GatherBlocks { pull: 0 },
-            Sprite::AtomOrbit { squash: 1000 },
+            Sprite::GatherBlock,
+            Sprite::AtomOrbit,
         ] {
             let (clip, tile) = sprite.margins();
             let half = sprite.view() / 2.0;
@@ -535,10 +542,7 @@ mod tests {
     #[test]
     fn assets_serve_sprites_and_defer_the_rest() {
         let assets = SpinnerAssets::new();
-        for sprite in [
-            Sprite::Asset(Asset::Orbit),
-            Sprite::AtomOrbit { squash: 500 },
-        ] {
+        for sprite in [Sprite::Asset(Asset::Orbit), Sprite::AtomOrbit] {
             assert!(matches!(assets.load(&sprite.path()), Ok(Some(_))));
         }
         assert!(matches!(assets.load("icons/other.svg"), Ok(None)));

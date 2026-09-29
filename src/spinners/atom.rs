@@ -6,9 +6,6 @@ const TILT: f32 = 180.0 / ORBITS as f32;
 
 const STROKE: f32 = 0.055;
 
-/// The squash is rounded to this, bounding how many sprites it needs.
-const QUANTUM: f32 = 0.01;
-
 /// A shell with three orbits tumbling in 3D.
 #[derive(IntoElement)]
 pub struct Atom {
@@ -40,15 +37,13 @@ impl RenderOnce for Atom {
                     // rotate(tilt) rotateX(90deg) rotate(spin) rotateX(90deg),
                     // seen without perspective: a circle squashed to cos(spin)
                     // across, then tilted.
-                    let squash = (spin.to_radians().cos().abs() / QUANTUM).round() * QUANTUM;
-                    let tilt = Affine::rotate(f32::from(index) * TILT).about(center);
-                    p.sprite(
-                        Sprite::AtomOrbit {
-                            squash: milli(squash),
-                        },
-                        tilt,
-                        1.0,
-                    );
+                    let squash = spin.to_radians().cos().abs();
+                    if squash > 1e-6 {
+                        let transform = Affine::linear(squash, 0.0, 0.0, 1.0)
+                            .then(Affine::rotate(f32::from(index) * TILT))
+                            .about(center);
+                        p.sprite(Sprite::AtomOrbit, transform, 1.0);
+                    }
                 }
             },
         )

@@ -11,6 +11,7 @@ use gpui::Div;
 use gpui::ElementId;
 use gpui::Hsla;
 use gpui::ParentElement;
+use gpui::PathBuilder;
 use gpui::Pixels;
 use gpui::Point;
 use gpui::Refineable;
@@ -35,6 +36,7 @@ use crate::motion::PlayState;
 use crate::motion::ReducedMotion;
 use crate::motion::SpinnerName;
 use crate::motion::reduced_motion;
+use crate::sprite::Asset;
 use crate::sprite::Sprite;
 use crate::sprite::check_assets;
 
@@ -234,6 +236,7 @@ pub(crate) fn frame(
                     window,
                     cx,
                     origin: bounds.origin,
+                    box_size: bounds.size,
                     size,
                     unit: size,
                     color,
@@ -247,12 +250,12 @@ pub(crate) fn frame(
 
 /// Paints a spinner in its own coordinate space, with the primitives GPUI
 /// draws cheaply: quads for anything round or rectangular, and cached
-/// sprites for everything else. Never paths — each batch of those costs a
-/// full-window multisampled pass.
+/// sprites for continuous transforms. Wave's changing capsules use one path.
 pub(crate) struct Painter<'a> {
     window: &'a mut Window,
     cx: &'a App,
     origin: Point<Pixels>,
+    box_size: gpui::Size<Pixels>,
     size: f32,
     unit: f32,
     color: Hsla,
@@ -307,6 +310,8 @@ impl Painter<'_> {
         ));
     }
 
+    /// A stationary rectangle. Moving or resizing shapes must use sprites
+    /// or paths, because GPUI snaps quad bounds to device pixels.
     pub fn rect(&mut self, x: f32, y: f32, width: f32, height: f32, radius: f32, alpha: f32) {
         let bounds = self.bounds(x, y, width, height);
         self.quad(bounds, radius, 0.0, alpha);
@@ -341,9 +346,40 @@ impl Painter<'_> {
         self.quad(bounds, side / 2.0 / scale / self.unit, 0.0, alpha);
     }
 
+    /// A stationary circle; use [`Self::animated_circle`] for motion.
     pub fn circle(&mut self, center: Pt, radius: f32, alpha: f32) {
         let d = radius * 2.0;
         self.rect(center.x - radius, center.y - radius, d, d, radius, alpha);
+    }
+
+    /// A moving or growing circle, transformed continuously on the GPU.
+    /// Its sprite identity and raster size do not depend on animation time.
+    pub fn animated_circle(&mut self, center: Pt, radius: f32, alpha: f32) {
+        if radius <= 0.0 || alpha <= 0.0 {
+            return;
+        }
+        let unit = self.unit;
+        let k = unit / self.size;
+        let scale = 2.0 * radius * k;
+        let transform = Affine::linear(scale, 0.0, 0.0, scale)
+            .about(crate::geom::pt(0.5, 0.5))
+            .then(Affine::translate(center.x * k - 0.5, center.y * k - 0.5));
+        self.view(1.0);
+        self.sprite(Sprite::Asset(Asset::Circle), transform, alpha);
+        self.unit = unit;
+    }
+
+    /// Changing-height pills with circular ends, batched into one path.
+    /// Scaling a fixed pill would squash its ends; changing quad bounds snaps.
+    pub fn capsules(&mut self, bars: impl IntoIterator<Item = (f32, f32, f32, f32)>) {
+        let mut path = PathBuilder::fill();
+        for (x, y, width, height) in bars {
+            append_capsule(&mut path, self.bounds(x, y, width, height));
+        }
+        match path.build() {
+            Ok(path) => self.window.paint_path(path, self.color),
+            Err(error) => log::warn!("gpui-loading: failed to build capsules: {error}"),
+        }
     }
 
     /// The outline of a square `side` across centered on `center`, drawn
@@ -359,25 +395,22 @@ impl Painter<'_> {
         self.outline(center, radius * 2.0, radius, stroke, alpha);
     }
 
-    /// Draws `sprite` over the spinner's square box, turned by `turn` —
-    /// which may only rotate or mirror it about the box's center, so its
-    /// padded tile always covers the region it is clipped to.
+    /// Draws `sprite` over the spinner's square box, transformed by `turn`.
+    /// The transformed shape must fit within its view and clip margin.
     pub fn sprite(&mut self, sprite: Sprite, turn: Affine, alpha: f32) {
         if alpha <= 0.0 {
             return;
         }
         let view = sprite.view();
         debug_assert!((self.size / self.unit - view).abs() < 1e-3);
-        debug_assert!({
-            let c = Pt {
-                x: view / 2.0,
-                y: view / 2.0,
-            };
-            let moved = turn.apply(c);
-            (moved.x - c.x).abs() < 1e-3 && (moved.y - c.y).abs() < 1e-3
-        });
         let (clip, tile) = sprite.margins();
-        let clip = self.bounds(-clip, -clip, view + 2.0 * clip, view + 2.0 * clip);
+        // The canvas can be wider than a square (e.g. BouncingDots).
+        // Clip to that entire box, not to the sprite's untransformed view.
+        let margin = px(clip * self.unit);
+        let clip = Bounds::new(
+            self.origin - point(margin, margin),
+            self.box_size + size(margin * 2.0, margin * 2.0),
+        );
         let scale = self.window.scale_factor();
         let origin = (
             f32::from(self.origin.x) * scale,
@@ -396,6 +429,22 @@ impl Painter<'_> {
                 }
             });
     }
+}
+
+/// A vertical pill with semicircular ends, in logical pixels. No rounding:
+/// its top and bottom must follow Wave's changing height between pixels.
+fn append_capsule(path: &mut PathBuilder, bounds: Bounds<Pixels>) {
+    let radius = bounds.size.width / 2.0;
+    let left = bounds.left();
+    let right = bounds.right();
+    let top = bounds.top();
+    let bottom = bounds.bottom();
+    let radii = point(radius, radius);
+    path.move_to(point(left, top + radius));
+    path.arc_to(radii, px(0.0), false, true, point(right, top + radius));
+    path.line_to(point(right, bottom - radius));
+    path.arc_to(radii, px(0.0), false, true, point(left, bottom - radius));
+    path.close();
 }
 
 /// Lays out the tile of a sprite `view` units across, padded by `tile`, over
@@ -499,7 +548,7 @@ mod tests {
     }
 
     #[test]
-    fn sprites_land_where_they_are_turned() {
+    fn sprites_land_where_they_are_transformed() {
         let (view, tile) = (1.0, 0.25);
         for scale in [1.0, 1.25, 1.5, 2.0] {
             for size in [20.0, 32.0, 48.0, 64.0, 37.3] {
@@ -509,6 +558,17 @@ mod tests {
                         Affine::rotate(37.0).about(pt(0.5, 0.5)),
                         Affine::rotate(90.0).about(pt(0.5, 0.5)),
                         Affine::linear(1.0, 0.0, 0.0, -1.0).about(pt(0.5, 0.5)),
+                        Affine::linear(0.001, 0.0, 0.0, 0.001).about(pt(0.5, 0.5)),
+                        Affine::linear(0.333, 0.0, 0.0, 0.333).about(pt(0.5, 0.5)),
+                        Affine::linear(0.667, 0.0, 0.0, 0.667).about(pt(0.5, 0.5)),
+                        Affine::translate(0.3, 0.0),
+                        Affine::translate(-0.3, 0.0),
+                        Affine::linear(1.3, 0.0, 0.0, 1.3)
+                            .about(pt(0.5, 0.5))
+                            .then(Affine::translate(0.123, 0.0)),
+                        Affine::linear(0.7, 0.0, 0.0, 0.7)
+                            .about(pt(0.5, 0.5))
+                            .then(Affine::translate(-0.123, 0.0)),
                     ] {
                         let o = (origin.0 * scale, origin.1 * scale);
                         let k = size * scale;
@@ -533,6 +593,60 @@ mod tests {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn animated_frames_reuse_the_tile_and_move_between_device_pixels() {
+        let (origin, k, scale) = ((101.3, 57.7), 40.0, 2.0);
+        let mut previous: Option<f32> = None;
+        let mut tile_bounds = None;
+        for frame in 0_u16..100 {
+            let shift = f32::from(frame) * 0.001;
+            let transform = Affine::linear(0.22 + shift, 0.0, 0.0, 0.22 + shift)
+                .about(pt(0.5, 0.5))
+                .then(Affine::translate(shift, -shift));
+            let (bounds, matrix) = sprite_tile(origin, k, scale, 1.0, 0.25, transform);
+            if let Some(tile_bounds) = tile_bounds {
+                assert_eq!(bounds, tile_bounds, "animation cannot change the atlas key");
+            }
+            tile_bounds = Some(bounds);
+            let (left, top, side) = drawn(bounds, scale);
+            let center = point(px(left + side / 2.0), px(top + side / 2.0));
+            let x = f32::from(matrix.apply(center).x);
+            if let Some(previous) = previous {
+                assert!((x - previous - 0.04_f32).abs() < 1e-3);
+            }
+            previous = Some(x);
+        }
+    }
+
+    #[test]
+    fn wave_capsules_keep_fractional_edges_and_round_ends() {
+        for height in [6.13, 6.27, 12.37, 20.0] {
+            for top in [0.37, (20.0 - height) / 2.0, 20.0 - height] {
+                let bounds = Bounds::new(point(px(0.23), px(top)), size(px(2.4), px(height)));
+                let mut builder = PathBuilder::fill();
+                append_capsule(&mut builder, bounds);
+                let path = builder.build().expect("a capsule tessellates");
+                // Tessellation approximates the curved rim within 0.1 px.
+                assert!((path.bounds.left() - bounds.left()).abs() < px(0.1));
+                assert!((path.bounds.right() - bounds.right()).abs() < px(0.1));
+                assert!((path.bounds.top() - bounds.top()).abs() < px(0.1));
+                assert!((path.bounds.bottom() - bounds.bottom()).abs() < px(0.1));
+                assert!(path.vertices.iter().all(|vertex| {
+                    let x = f32::from(vertex.xy_position.x - bounds.center().x);
+                    let y = f32::from(vertex.xy_position.y);
+                    let cap_center = if y < top + 1.2 {
+                        top + 1.2
+                    } else if y > top + height - 1.2 {
+                        top + height - 1.2
+                    } else {
+                        y
+                    };
+                    x * x + (y - cap_center).powi(2) <= 1.2_f32.powi(2) + 1e-3
+                }));
             }
         }
     }

@@ -26,7 +26,7 @@ impl RenderOnce for Pulse {
                         Timing::EASE_OUT,
                     )
                 };
-                p.circle(center, 8.0 * scale, opacity);
+                p.animated_circle(center, 8.0 * scale, opacity);
                 p.dot(center, 2.0, 1.0);
             },
         )

@@ -42,7 +42,7 @@ impl RenderOnce for Eclipse {
                         );
                         (slide, depth)
                     };
-                    p.circle(pt(0.5 + slide * DOT, 0.5), DOT / 2.0 * scale, opacity);
+                    p.animated_circle(pt(0.5 + slide * DOT, 0.5), DOT / 2.0 * scale, opacity);
                 }
             },
         )

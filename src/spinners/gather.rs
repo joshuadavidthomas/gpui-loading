@@ -1,7 +1,7 @@
 use super::prelude::*;
-
-/// The pull is rounded to this, bounding how many sprites it needs.
-const QUANTUM: f32 = 0.02;
+use crate::sprite::GATHER_BLOCK;
+use crate::sprite::GATHER_BLOCKS;
+use crate::sprite::GATHER_PULL;
 
 /// Four blocks drawing together, turning a quarter, and parting.
 #[derive(IntoElement)]
@@ -35,10 +35,14 @@ impl RenderOnce for Gather {
                         ),
                     )
                 };
-                let blocks = Sprite::GatherBlocks {
-                    pull: milli((pull / QUANTUM).round() * QUANTUM),
-                };
-                p.sprite(blocks, Affine::rotate(turn).about(pt(0.5, 0.5)), 1.0);
+                for (corner, direction) in GATHER_BLOCKS {
+                    let shift = GATHER_PULL * pull;
+                    let center =
+                        corner + direction * shift + pt(GATHER_BLOCK / 2.0, GATHER_BLOCK / 2.0);
+                    let transform = Affine::translate(center.x - 0.5, center.y - 0.5)
+                        .then(Affine::rotate(turn).about(pt(0.5, 0.5)));
+                    p.sprite(Sprite::GatherBlock, transform, 1.0);
+                }
             },
         )
     }

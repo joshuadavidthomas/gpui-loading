@@ -23,14 +23,6 @@ impl RenderOnce for BouncingDots {
             window,
             cx,
             |p, m| {
-                // Laid out across in whole pixels, so small dots between
-                // pixels don't antialias lopsided.
-                let size = p.size();
-                p.view(size);
-                let dot_size = (size * DOT).round();
-                let gap = (size * GAP).round();
-                let span = dot_size * f32::from(DOTS) + gap * f32::from(DOTS - 1);
-                let start = ((size * WIDTH - span) / 2.0).round();
                 for dot in 0..DOTS {
                     let lift = if m.reduced() {
                         0.0
@@ -38,13 +30,10 @@ impl RenderOnce for BouncingDots {
                         0.28_f32.lerp(
                             -0.72,
                             Timing::EASE_IN_OUT.apply(m.alternating(dot.into(), DOTS.into())),
-                        ) * dot_size
+                        ) * DOT
                     };
-                    let center = pt(
-                        start + f32::from(dot) * (dot_size + gap) + dot_size / 2.0,
-                        size / 2.0 + lift,
-                    );
-                    p.circle(center, dot_size / 2.0, 1.0);
+                    let center = pt(f32::from(dot) * (DOT + GAP) + DOT / 2.0, 0.5 + lift);
+                    p.animated_circle(center, DOT / 2.0, 1.0);
                 }
             },
         )

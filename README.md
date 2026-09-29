@@ -67,24 +67,36 @@ the selected settings; Reset restores them all.
 
 ## Rendering
 
-Spinners paint only the primitives GPUI draws cheaply. Dots, bars, squares
-and rings are quads. Everything else is an SVG that GPUI rasterizes once into
-its sprite atlas, then turns and tints on the GPU each frame, the way Zed
-spins its own icons. Nothing is drawn as a path: every batch of paths costs
-GPUI a full-window multisampled pass.
+Stationary dots, bars, squares and rings are quads. Moving or scaling shapes
+are cached SVG sprites, transformed and tinted continuously on the GPU.
+GPUI snaps quad bounds and border widths to device pixels, so animated
+geometry must not use quads.
 
-Glyphs and gradients that only turn are SVG files in `assets/`. Arcs, whose
-length and end caps vary, are generated, as are the shapes that change as
-they move, like Snake's stretching dash: one SVG per step, each rendered
-once.
+Glyphs, gradients, rings and filled circles are SVG files in `assets/`.
+Other fixed shapes are generated once and reused. Shapes whose geometry
+changes, like Snake's stretching dash, use a bounded set of generated sprites.
+
+Wave changes its bars' height while keeping their ends circular. Its five
+bars are batched into one vector path, preserving fractional edges without
+distorting the ends or growing the sprite cache. This requires GPUI's
+multisampled path pass; the other spinners use quads and sprites.
+
+All 29 spinners have been checked for animated quad bounds:
+
+| Rendering | Spinners |
+| --- | --- |
+| Continuous sprite transforms | Arc, Atom, Blocks, BouncingDots, Cascade, Clock, Comet, Compass, Dual, Eclipse, Gather, Leap, Orbit, Pulse, Radar, Ring, Ripple, Slide |
+| Stationary geometry, opacity animation | CircularDots, Classic, ClassicV2, LinearDots, Loading, Swirl |
+| Continuous vector geometry | Wave |
+| Cached shape steps, continuous transforms where applicable | Flip, Morph, Snake, Trace |
 
 ## Differences from the web version
 
 - Motion props do not cascade. On the web, `--ld-duration` and
   `--ld-play-state` set on an ancestor reach every spinner below it; here each
   spinner takes its props directly.
-- Snake's dash, Trace's offset, Morph's radius, Gather's pull, Atom's tumble
-  and Flip's turn move in small steps (a quarter unit, a degree and so on)
+- Snake's dash, Trace's offset, Morph's radius and Flip's turn move in small
+  steps (a quarter unit, a degree and so on)
   rather than continuously, so that the sprites they need can be cached.
 
 ## Development

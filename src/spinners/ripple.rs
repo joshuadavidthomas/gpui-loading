@@ -16,8 +16,6 @@ impl RippleDirection {
 
 const RINGS: u16 = 3;
 
-const STROKE: f32 = 0.08;
-
 /// Rings spreading from the center and fading.
 #[derive(IntoElement)]
 pub struct Ripple {
@@ -61,7 +59,15 @@ impl RenderOnce for Ripple {
                             Timing::EASE_OUT,
                         )
                     };
-                    p.ring(center, 0.5 * scale, STROKE * scale, opacity);
+                    // Quad bounds and borders snap to device pixels. Scale a
+                    // fixed sprite instead, like upstream's CSS transform.
+                    if scale > 0.0 {
+                        p.sprite(
+                            Sprite::Asset(Asset::RippleRing),
+                            Affine::linear(scale, 0.0, 0.0, scale).about(center),
+                            opacity,
+                        );
+                    }
                 }
             },
         )

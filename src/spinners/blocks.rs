@@ -73,10 +73,25 @@ impl RenderOnce for Blocks {
                                 Timing::EASE_IN_OUT,
                             )
                         };
-                        let side = CELL * scale;
-                        let x = f32::from(col) * (CELL + GAP) + (CELL - side) / 2.0;
-                        let y = f32::from(row) * (CELL + GAP) + (CELL - side) / 2.0;
-                        p.rect(x, y, side, side, 0.0625 * scale, 1.0);
+                        if scale > 0.0 {
+                            let center = pt(
+                                f32::from(col) * (CELL + GAP) + CELL / 2.0,
+                                f32::from(row) * (CELL + GAP) + CELL / 2.0,
+                            );
+                            let transform = Affine::linear(scale, 0.0, 0.0, scale)
+                                .about(pt(0.5, 0.5))
+                                .then(Affine::translate(center.x - 0.5, center.y - 0.5));
+                            p.sprite(
+                                Sprite::RoundedRect {
+                                    view: milli(1.0),
+                                    width: milli(CELL),
+                                    height: milli(CELL),
+                                    radius: milli(0.0625),
+                                },
+                                transform,
+                                1.0,
+                            );
+                        }
                     }
                 }
             },

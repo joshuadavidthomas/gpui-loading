@@ -36,7 +36,7 @@ impl RenderOnce for Leap {
                 };
                 let arm = Affine::rotate(turn).apply(pt(-gap, 0.0));
                 let center = pt(hinge.x + shift * gap + arm.x, hinge.y + arm.y);
-                p.circle(center, dot / 2.0, 1.0);
+                p.animated_circle(center, dot / 2.0, 1.0);
             }
         })
     }
