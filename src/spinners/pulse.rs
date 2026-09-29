@@ -27,7 +27,7 @@ impl RenderOnce for Pulse {
                     )
                 };
                 p.circle(center, 8.0 * scale, opacity);
-                p.circle(center, 2.0, 1.0);
+                p.dot(center, 2.0, 1.0);
             },
         )
     }

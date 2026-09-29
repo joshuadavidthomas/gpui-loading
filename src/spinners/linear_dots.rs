@@ -21,6 +21,16 @@ impl RenderOnce for LinearDots {
             window,
             cx,
             |p, m| {
+                // Laid out in whole pixels, so small dots between pixels
+                // don't blur out of round.
+                let size = p.size();
+                p.view(size);
+                let dot_size = (size * DOT).round();
+                let gap =
+                    ((size * WIDTH - dot_size * f32::from(DOTS)) / f32::from(DOTS - 1)).floor();
+                let span = dot_size * f32::from(DOTS) + gap * f32::from(DOTS - 1);
+                let start = ((size * WIDTH - span) / 2.0).round();
+                let top = ((size - dot_size) / 2.0).round();
                 for dot in 0..DOTS {
                     let alpha = if m.reduced() {
                         0.75
@@ -32,8 +42,11 @@ impl RenderOnce for LinearDots {
                         )
                     };
                     p.circle(
-                        pt(f32::from(dot) * DOT * 2.0 + DOT / 2.0, 0.5),
-                        DOT / 2.0,
+                        pt(
+                            start + f32::from(dot) * (dot_size + gap) + dot_size / 2.0,
+                            top + dot_size / 2.0,
+                        ),
+                        dot_size / 2.0,
                         alpha,
                     );
                 }

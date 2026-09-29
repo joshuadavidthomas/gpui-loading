@@ -271,6 +271,12 @@ impl Painter<'_> {
         self.size
     }
 
+    /// The spinner's size in device pixels. `view` this many units to lay
+    /// shapes out in whole device pixels.
+    pub fn device_size(&self) -> f32 {
+        self.size * self.window.scale_factor()
+    }
+
     fn bounds(&self, x: f32, y: f32, width: f32, height: f32) -> Bounds<Pixels> {
         Bounds::new(
             point(
@@ -304,6 +310,35 @@ impl Painter<'_> {
     pub fn rect(&mut self, x: f32, y: f32, width: f32, height: f32, radius: f32, alpha: f32) {
         let bounds = self.bounds(x, y, width, height);
         self.quad(bounds, radius, 0.0, alpha);
+    }
+
+    /// A dot that doesn't move, of about the given radius, sized and
+    /// placed in whole device pixels so its edges land on them: a small dot
+    /// between pixels blurs out of round. Dots placed symmetrically about
+    /// the spinner's center stay so, and a dot on the center stays on it,
+    /// concentric with anything turning or growing about it.
+    pub fn dot(&mut self, center: Pt, radius: f32, alpha: f32) {
+        let scale = self.window.scale_factor();
+        let diameter = 2.0 * radius * self.unit * scale;
+        let middle = self.size / self.unit / 2.0;
+        let side = if (center.x - middle).abs() < 1e-3 && (center.y - middle).abs() < 1e-3 {
+            pixel_diameter(
+                diameter,
+                (f32::from(self.origin.y) + self.size / 2.0) * scale,
+            )
+        } else {
+            diameter.round().max(1.0)
+        };
+        let (x, y) = (
+            (f32::from(self.origin.x) + center.x * self.unit) * scale,
+            (f32::from(self.origin.y) + center.y * self.unit) * scale,
+        );
+        let (left, top) = ((x - side / 2.0).round(), (y - side / 2.0).round());
+        let bounds = Bounds::new(
+            point(px(left / scale), px(top / scale)),
+            size(px(side / scale), px(side / scale)),
+        );
+        self.quad(bounds, side / 2.0 / scale / self.unit, 0.0, alpha);
     }
 
     pub fn circle(&mut self, center: Pt, radius: f32, alpha: f32) {
@@ -412,6 +447,25 @@ fn sprite_tile(
     (bounds, transformation)
 }
 
+/// The whole number of device pixels nearest `diameter` that a dot centered
+/// at device `center` can span with its edges on pixels: even about a pixel
+/// edge, odd about a pixel's middle, the larger when two are as near.
+fn pixel_diameter(diameter: f32, center: f32) -> f32 {
+    let nearest = diameter.round().max(1.0);
+    let twice = 2.0 * center;
+    if (twice - twice.round()).abs() > 1e-3 {
+        return nearest;
+    }
+    if (nearest - twice.round()).rem_euclid(2.0) == 0.0 {
+        return nearest;
+    }
+    if nearest - diameter > 0.0 && nearest > 1.0 {
+        nearest - 1.0
+    } else {
+        nearest + 1.0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -427,6 +481,21 @@ mod tests {
         let drawn = (side * 2.0).ceil() / 2.0;
         let place = |start: f32| (start + side / 2.0 - drawn / 2.0).round();
         (place(x), place(y), drawn)
+    }
+
+    #[test]
+    #[expect(clippy::float_cmp, reason = "whole pixel counts are exact")]
+    fn dots_span_whole_pixels_about_the_center() {
+        // About a pixel edge, then about a pixel's middle.
+        assert_eq!(pixel_diameter(5.0, 10.0), 6.0);
+        assert_eq!(pixel_diameter(5.0, 10.5), 5.0);
+        assert_eq!(pixel_diameter(10.0, 20.0), 10.0);
+        assert_eq!(pixel_diameter(4.6, 10.0), 4.0);
+        assert_eq!(pixel_diameter(5.4, 10.0), 6.0);
+        assert_eq!(pixel_diameter(0.4, 10.5), 1.0);
+        assert_eq!(pixel_diameter(0.4, 10.0), 2.0);
+        // Off the half-pixel grid, the center can't be kept anyway.
+        assert_eq!(pixel_diameter(5.0, 10.3), 5.0);
     }
 
     #[test]
