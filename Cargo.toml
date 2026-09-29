@@ -10,6 +10,10 @@ keywords = ["gpui", "spinner", "loading", "loader", "indicator"]
 gpui = "0.2.2"
 log = "0.4"
 
+[dev-dependencies]
+# Compile Metal shaders at runtime so examples build on macOS without full Xcode.
+gpui = { version = "0.2.2", features = ["runtime_shaders"] }
+
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
 
