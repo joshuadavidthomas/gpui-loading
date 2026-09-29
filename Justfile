@@ -10,13 +10,13 @@ build *ARGS:
     cargo build {{ ARGS }}
 
 check *ARGS:
-    cargo check --locked --all-targets --all-features {{ ARGS }}
+    cargo check --locked --workspace --all-targets --all-features {{ ARGS }}
 
 clean:
     cargo clean
 
 clippy *ARGS:
-    cargo clippy --locked --all-targets --all-features --fix --allow-dirty {{ ARGS }} -- -D warnings
+    cargo clippy --locked --workspace --all-targets --all-features --fix --allow-dirty {{ ARGS }} -- -D warnings
 
 rustfmt_channel := `sed -n 's/^channel = "\([^"]*\)"/\1/p' tools/rustfmt/rust-toolchain.toml`
 
@@ -43,7 +43,7 @@ lint *ARGS:
 
 # Open the gallery of every spinner
 gallery *ARGS:
-    cargo run --release --example gallery -- {{ ARGS }}
+    cargo run --release -p gallery -- {{ ARGS }}
 
 test *ARGS:
     cargo test {{ ARGS }}

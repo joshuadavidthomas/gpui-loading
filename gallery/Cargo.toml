@@ -1,0 +1,17 @@
+[package]
+name = "gallery"
+description = "Every gpui-loading spinner, laid out like loading.dev."
+version = "0.0.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+# Its own crate rather than an example: gpui's derive macros emit
+# `gpui_kit::` paths whenever the manifest names gpui-kit, even as a
+# dev-dependency, which would break the library's own derives.
+[dependencies]
+gpui-kit = "0.7.0"
+gpui-loading = { path = ".." }
+
+[lints]
+workspace = true

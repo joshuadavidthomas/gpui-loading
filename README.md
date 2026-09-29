@@ -3,13 +3,20 @@
 Beautiful loading indicators for [GPUI](https://gpui.rs) — a Rust port of
 [loading-dev](https://github.com/jakubkrehel/loading) by Jakub Krehel.
 
+The spinners are built on Zed's GPUI, from its `gpui-pre` snapshot on
+crates.io:
+
+```toml
+gpui = { package = "gpui-pre", version = "=0.3.7" }
+```
+
 Spinners draw some shapes from SVGs, which GPUI loads through the app's
 asset source, so install theirs when creating the app:
 
 ```rust
-Application::new().with_assets(gpui_loading::SpinnerAssets::new())
+gpui_platform::application().with_assets(gpui_loading::SpinnerAssets::new())
 // or, if the app has assets of its own:
-Application::new().with_assets(gpui_loading::SpinnerAssets::wrap(MyAssets))
+gpui_platform::application().with_assets(gpui_loading::SpinnerAssets::wrap(MyAssets))
 ```
 
 Then:
@@ -49,7 +56,7 @@ same still frame the web version shows under `prefers-reduced-motion`.
 `Ripple`, `Slide`, `Snake`, `Swirl`, `Trace`, `Wave`.
 
 ```sh
-cargo run --example gallery
+cargo run -p gallery
 ```
 
 ## Rendering

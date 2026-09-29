@@ -390,7 +390,7 @@ impl Painter<'_> {
         self.window
             .with_content_mask(Some(ContentMask { bounds: clip }), |window| {
                 if let Err(error) =
-                    window.paint_svg(bounds, sprite.path(), transformation, color, cx)
+                    window.paint_svg(bounds, sprite.path(), None, transformation, color, cx)
                 {
                     log::warn!("gpui-loading: failed to paint sprite {sprite:?}: {error}");
                 }

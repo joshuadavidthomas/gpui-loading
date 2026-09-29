@@ -7,14 +7,18 @@ license = "MIT"
 keywords = ["gpui", "spinner", "loading", "loader", "indicator"]
 
 [dependencies]
-gpui = "0.2.2"
+# Zed's GPUI, from the `gpui-pre` snapshots on crates.io. Any snapshot may
+# change the API, so this pins one exactly.
+gpui = { package = "gpui-pre", version = "=0.3.7" }
 log = "0.4"
 
-[dev-dependencies]
-# Compile Metal shaders at runtime so examples build on macOS without full Xcode.
-gpui = { version = "0.2.2", features = ["runtime_shaders"] }
+[lints]
+workspace = true
 
-[lints.clippy]
+[workspace]
+members = ["gallery"]
+
+[workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
 
 # pedantic

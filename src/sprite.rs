@@ -397,9 +397,9 @@ fn flip_project(p: Pt, degrees: f32) -> Pt {
 /// source. Install it when creating the application:
 ///
 /// ```ignore
-/// Application::new().with_assets(SpinnerAssets::new())
+/// gpui_platform::application().with_assets(SpinnerAssets::new())
 /// // or, with assets of your own:
-/// Application::new().with_assets(SpinnerAssets::wrap(MyAssets))
+/// gpui_platform::application().with_assets(SpinnerAssets::wrap(MyAssets))
 /// ```
 pub struct SpinnerAssets<A: AssetSource = ()>(A);
 
@@ -452,7 +452,7 @@ pub(crate) fn check_assets(cx: &App) {
         if !matches!(cx.asset_source().load(PROBE), Ok(Some(_))) {
             log::error!(
                 "gpui-loading: spinners need their assets. Create the app with \
-                 `Application::new().with_assets(gpui_loading::SpinnerAssets::new())`, \
+                 `gpui_platform::application().with_assets(gpui_loading::SpinnerAssets::new())`, \
                  or `SpinnerAssets::wrap(your_assets)`."
             );
             debug_assert!(false, "gpui-loading: SpinnerAssets are not installed");
